@@ -17,8 +17,15 @@ const
 dotenv.config();
 
 if (!process.env.TOKEN) {
-  console.error("You need to add a token inside Secrets.");
+  console.error(`[${chalk.red.bold("-")}] You need to add a token inside the .env file.`);
   process.exit();
+}
+
+// Validate token format
+const token = process.env.TOKEN.trim();
+if (!token.includes('.')) {
+  console.error(`[${chalk.red.bold("-")}] Invalid token format. Please check your token in the .env file.`);
+  process.exit(1);
 }
 
 console.log(`${chalk.cyanBright.bold("Statuscord")} | ${chalk.greenBright.bold("SealedSaucer")}`);
@@ -46,9 +53,14 @@ const statusModule = require(`./statuses/${statusName}.js`);
 client.on("ready", () => {
   console.log(`[${style(statusName.toUpperCase())}] Successfully logged in as ${client.user.username}#${client.user.discriminator} (${client.user.id})!`);
   
-  statusModule(client, CLIENT_ID)
-    .then(() => console.log(`[${chalk.green.bold("+")}] Status set successfully!`))
-    .catch(console.error);
+  // Add a small delay before setting status
+  setTimeout(() => {
+    statusModule(client, CLIENT_ID)
+      .then(() => console.log(`[${chalk.green.bold("+")}] Status set successfully!`))
+      .catch(error => {
+        console.error(`[${chalk.red.bold("-")}] Status setting failed:`, error.message);
+      });
+  }, 2000);
 });
 
 client.on("error", (error) => {
@@ -56,8 +68,12 @@ client.on("error", (error) => {
 });
 
 console.log(`[${chalk.blue.bold("~")}] Attempting to login...`);
-client.login(process.env.TOKEN)
+client.login(token)
   .catch(error => {
     console.error(`[${chalk.red.bold("-")}] Login failed:`, error.message);
+    if (error.message.includes('TOKEN_INVALID')) {
+      console.error(`[${chalk.red.bold("-")}] The token in your .env file appears to be invalid or expired.`);
+      console.error(`[${chalk.yellow.bold("!")}] Please verify your Discord token and update the .env file.`);
+    }
     process.exit(1);
   });
