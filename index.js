@@ -4,7 +4,6 @@ const
   express = require("express"),
   chalk = require("chalk"),
   server = express(),
-  prompt = require("prompt-sync")({ sigint: true }),
   dotenv = require('dotenv'),
   { Client } = require('discord.js-selfbot-v11'),
   client = new Client(),
@@ -27,8 +26,6 @@ console.log(`${chalk.cyanBright.bold("Statuscord")} | ${chalk.greenBright.bold("
 server.all("/", (req, res) => res.send(`<meta http-equiv="refresh" content="0; URL=https://phantom.fr.to/support"/>`));
 server.listen(process.env.PORT ?? 3000);
 
-client.login(process.env.TOKEN);
-
 console.log(`\n[${chalk.green.bold("+")}] The webserver is ready.\n`);
 
 console.log(
@@ -37,18 +34,30 @@ console.log(
   .map(([number, [statusName]]) => "\n" + `[${number}] ${statusName.replace(/^./, m => m.toUpperCase())}`)
   .join("") + "\n"
 );
-const number = prompt("> ");
-const [statusName, style] = statuses.get(+number);
 
-if (statusName) {
-  const statusModule = require(`./statuses/${statusName}.js`);
+// For now, let's default to "playing" status to test the connection
+const number = 1; // Default to playing
+const [statusName, style] = statuses.get(number);
 
-  console.clear();
-  client.on("ready", _ => statusModule(client, CLIENT_ID)
-    .then(_ => console.log(`[${style(statusName.toUpperCase())}] Successfully logged in as ${client.user.username}#${client.user.discriminator} (${client.user.id})!`))
-    .catch(console.error)
-  );
-} else {
-  console.log(`[${chalk.red.bold("-")}] Invalid option.`);
-  process.exit();
-}
+console.log(`Selected: ${statusName}`);
+
+const statusModule = require(`./statuses/${statusName}.js`);
+
+client.on("ready", () => {
+  console.log(`[${style(statusName.toUpperCase())}] Successfully logged in as ${client.user.username}#${client.user.discriminator} (${client.user.id})!`);
+  
+  statusModule(client, CLIENT_ID)
+    .then(() => console.log(`[${chalk.green.bold("+")}] Status set successfully!`))
+    .catch(console.error);
+});
+
+client.on("error", (error) => {
+  console.error(`[${chalk.red.bold("-")}] Discord client error:`, error);
+});
+
+console.log(`[${chalk.blue.bold("~")}] Attempting to login...`);
+client.login(process.env.TOKEN)
+  .catch(error => {
+    console.error(`[${chalk.red.bold("-")}] Login failed:`, error.message);
+    process.exit(1);
+  });
